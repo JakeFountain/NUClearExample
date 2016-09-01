@@ -1,5 +1,5 @@
 # We need python!
-FIND_PACKAGE(PythonInterp REQUIRED)
+FIND_PACKAGE(PythonInterp 3 REQUIRED)
 
 FUNCTION(NUCLEAR_ROLE)
 
