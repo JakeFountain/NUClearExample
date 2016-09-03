@@ -17,6 +17,9 @@ namespace example {
     PythonExample::PythonExample(std::unique_ptr<NUClear::Environment> environment)
     : Reactor(std::move(environment)) {
 
+
+        //  http://stackoverflow.com/questions/26061298/python-multi-thread-multi-interpreter-c-api
+
         on<Configuration>("PythonExample.yaml").then([this] (const Configuration& config) {
             // Use configuration here from file PythonExample.yaml
         });
@@ -26,10 +29,9 @@ namespace example {
             Py_Initialize();
 
             PyRun_SimpleString("from message.example import ExampleMessage\n"
-                               ""
+                               "print(__name__)"
                                "print('.' + ExampleMessage.__module__ + '.' + ExampleMessage.__name__)\n"
             );
-
         });
 
         on<Every<1, std::chrono::seconds>>().then([this] {
