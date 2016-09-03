@@ -15,7 +15,7 @@ class PythonExample(object):
 """
 
 // SOMEWHERE IN SOME OTHER GLOBAL PYTHON ENABLER FILE WHICH RUNS ONCE FOR WHOLE SYSTEM
-// BEFORE IT STARTS RUNNING PYTHON CODE
+// BEFORE IT STARTS RUNNING PYTHON CODE (doesn't have to be generated here)
 PyImport_AppendInittab("message", &PyInit_message);
 Py_Initialize();
 PyEval_InitThreads();
@@ -39,34 +39,47 @@ namespace B {
             // Store a pointer to our newly created interpreter
             interpreter = thread_state->interp;
 
-            // TODO somewhere I need to set the self variable to an instance of the reactor class
+            // Create a module object that holds our binding functions
+            pybind11::module module("nuclear_reactor", "Binding functions for the current nuclear_reactor");
+
+            // Create a function that binds the self object
+            m.def("bind_self", [this] (pybind11::object obj) {
+                self = obj;
+            })
+
+            // Create a function that can be called to bind this function
+            m.def("bind_{an_example_function}", [this] (pybind11::function fn, runtimeargs?) {
+
+                return on<DSL...>(runtimeargs).then([this, fn] (args...) {
+
+                    // Create our thread state for this thread if it doesn't exist
+                    if (!thread_state) {
+                        thread_state = PyThreadState_New(interpreter);
+                    }
+
+                    // Load our thread state and obtain the GIL
+                    PyEval_RestoreThread(thread_state);
+
+                    // Run the python function
+                    fn(self, args...);
+
+                    // Release the GIL and set our thread back to nullptr
+                    PyEval_SaveThread()
+                });
+            });
+            ....etc
+
+            // Take our created module and add it to this subinterpreters imports
+            PyImport_AddModule("nuclear_reactor");
+            PyObject* sys_modules = PyImport_GetModuleDict();
+            PyDict_SetItemString(sys_modules, "nuclear_reactor", module.ptr());
 
             // TODO open the .py file and let it run!
             // If we setup everything properly here it should call the appropriate c++ functions and make things happen
-        }
-
-        // Generated for the python function an_example_function
-        auto bind_an_example_function(pybind11::function pyfn) {
-
-            return on<DSL...>(runtimeargs).then([this, fn] (args...) {
-
-                // Create our thread state for this thread if it doesn't exist
-                if (!thread_state) {
-                    thread_state = PyThreadState_New(interpreter);
-                }
-
-                // Load our thread state and obtain the GIL
-                PyEval_RestoreThread(thread_state);
-
-                // Run the python function
-                fn(self, args...);
-
-                // Release the GIL and set our thread back to nullptr
-                PyEval_SaveThread()
-            });
         }
     }
 
 }
 }
+
 """
