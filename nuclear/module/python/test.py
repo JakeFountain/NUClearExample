@@ -40,7 +40,10 @@ namespace B {
             interpreter = thread_state->interp;
 
             // Create a module object that holds our binding functions
-            pybind11::module module("nuclear_reactor", "Binding functions for the current nuclear_reactor");
+            pybind11::module module("nuclear", "Binding functions for the current nuclear_reactor");
+
+            // TODO also here create on Trigger etc (dsl keywords) and attach them to NUClear
+            // They should basically be noop types now (except for on and reactor which should call the appropriate binding functions)
 
             // Create a function that binds the self object
             m.def("bind_self", [this] (pybind11::object obj) {
