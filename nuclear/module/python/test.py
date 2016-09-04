@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from nuclear import Reactor, on, Trigger
+from nuclear import Reactor, on, Trigger, With, Priority
 
 class P(object):
     pass
@@ -7,7 +7,7 @@ class P(object):
 @Reactor
 class PythonExample(object):
 
-    @on(Trigger(P))
+    @on(Trigger(Trigger), With(P), Priority.HIGH())
     def an_example_function(self, p):
         print(p)
 
@@ -46,7 +46,7 @@ namespace B {
             // They should basically be noop types now (except for on and reactor which should call the appropriate binding functions)
 
             // Create a function that binds the self object
-            m.def("bind_self", [this] (pybind11::object obj) {
+            m.def("bind_self", [this] (PyObject* obj) {
                 self = obj;
             })
 
