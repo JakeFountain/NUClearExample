@@ -1,8 +1,9 @@
 import inspect
+import re
+from textwrap import dedent
 
-
-# A dsl keyword needs to provide NUClear dsl words
-# A dsl keyword needs to provide runtime arguments (may be empty)
+def indent(str, len=4):
+    return '\n'.join([(' ' * len) + l for l in str.splitlines()])
 
 class DSLWord(object):
     pass
@@ -121,8 +122,124 @@ def Reactor(reactor):
     # Get our reactions
     reactions = inspect.getmembers(reactor, predicate=lambda x: isinstance(x, DSLCallback))
 
+    binder_impl = dedent("""\
+        // Binding function for the dsl on<{dsl}>
+        m.def("bind_{func_name}", [this] (pybind11::function fn) {{
+
+            return on<{dsl}>().then([this, fn] (args...) {{
+
+                // Create our thread state for this thread if it doesn't exist
+                if (!thread_state) {{
+                    thread_state = PyThreadState_New(interpreter);
+                }}
+
+                // Load our thread state and obtain the GIL
+                PyEval_RestoreThread(thread_state);
+
+                // Run the python function
+                fn(self, args...);
+
+                // Release the GIL and set our thread back to nullptr
+                PyEval_SaveThread()
+            }});
+        }});""")
+
+    binders = set()
+
+    # Loop through our reactions
     for reaction in reactions:
-        print(reaction[1].template_args())
+        func_name = re.sub(r'(?:\W|^(?=\d))+','_', reaction[1].template_args())
+
+        binders.add(binder_impl.format(func_name=func_name,
+            dsl=reaction[1].template_args()))
+
+    class_name = reactor.__name__
+    open_namespace = "namespace TODOOpenNamespace {"
+    close_namespace = "}  // todo TODOOpenNamespace"
+    macro_guard = "{}_H".format(class_name.upper())
+    header_file = "{}.h".format(class_name)
+
+    header_template = dedent("""\
+        #ifndef {macro_guard}
+        #define {macro_guard}
+
+        {open_namespace}
+
+            class {class_name} : public NUClear::Reactor {{
+            public:
+                // Constructor
+                explicit {class_name}(std::unique_ptr<NUClear::Environment> environment);
+
+            private:
+                // The subinterpreter for this module
+                PyInterpreterState* interpreter = nullptr;
+
+                // The self object for this module
+                PyObject* self = nullptr;
+
+                // The thread state for this thread/interpreter combination
+                thread_local PyThreadState* thread_state = nullptr;
+            }};
+        {close_namespace}
+
+        #endif  // {macro_guard}""")
+
+    print(header_template.format(class_name=class_name,
+        macro_guard=macro_guard,
+        open_namespace=open_namespace,
+        close_namespace=close_namespace))
+
+    cpp_template = dedent("""\
+        #include "{header_file}"
+
+        {open_namespace}
+
+            {class_name}::{class_name}(std::unique_ptr<NUClear::Environment> environment)
+            : Reactor(std::move(environment)) {{
+                // If python hasn't been used in another module yet
+                if (!Py_IsInitialized()) {{
+                    // Add our message to our initilsation
+                    PyImport_AppendInittab("message", &PyInit_message);
+
+                    // Initialise without signal handlers
+                    Py_InitializeEx(0);
+
+                    // Initialise using threads in python
+                    PyEval_InitThreads();
+                }}
+
+                // This sets the threadstate/interpreter combination for
+                // the thread that creates this interperter
+                thread_state = Py_NewInterpreter();
+
+                // Store a pointer to our newly created interpreter
+                interpreter = thread_state->interp;
+
+                // Create a module object that holds our binding functions
+                pybind11::module module("nuclear", "Binding functions for the current nuclear reactor");
+
+                // Create a function that binds the self object for passing into callbacks
+                m.def("bind_self", [this] (PyObject* obj) {{
+                    self = obj;
+                }});
+
+        {binders}
+
+                // Take our created module and add it to this subinterpreters imports
+                PyImport_AddModule("nuclear_reactor");
+                PyObject* sys_modules = PyImport_GetModuleDict();
+                PyDict_SetItemString(sys_modules, "nuclear_reactor", module.ptr());
+
+                // Now open up our main python file and run it to bind all the functions
+            }}
+
+        {close_namespace}""")
+
+    print(cpp_template.format(header_file=header_file,
+        class_name=class_name,
+        binders=indent('\n\n'.join(binders), 8),
+        open_namespace=open_namespace,
+        close_namespace=close_namespace))
 
     return reactor
 
@@ -134,7 +251,6 @@ def on(*args):
         return DSLCallback(func, *args)
 
     return decorator
-
 
 # TYPES THAT I DON'T KNOW IF I WANT
 
