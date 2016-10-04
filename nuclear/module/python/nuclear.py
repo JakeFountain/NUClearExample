@@ -1,5 +1,6 @@
 import inspect
 import re
+import os
 from textwrap import dedent
 
 def indent(str, len=4):
@@ -119,6 +120,12 @@ class DSLCallback(DSLWord):
 # Decorator for creating instance variables/setting up reactor
 def Reactor(reactor):
 
+    # Get the filename of the reactor
+    print(os.path.abspath(inspect.stack()[1].filename))
+
+    # Go up the folders until we find a CMakeLists.txt file (our root dir)
+
+
     # Get our reactions
     reactions = inspect.getmembers(reactor, predicate=lambda x: isinstance(x, DSLCallback))
 
@@ -140,15 +147,15 @@ def Reactor(reactor):
                 fn(self, args...);
 
                 // Release the GIL and set our thread back to nullptr
-                PyEval_SaveThread()
+                PyEval_SaveThread();
             }});
         }});""")
 
     binders = set()
 
-    # Loop through our reactions
+    # Loop through our reactions and add handler functions for them
     for reaction in reactions:
-        func_name = re.sub(r'(?:\W|^(?=\d))+','_', reaction[1].template_args())
+        func_name = re.sub(r'(?:\W|^(?=\d))+', '_', reaction[1].template_args())
 
         binders.add(binder_impl.format(func_name=func_name,
             dsl=reaction[1].template_args()))
@@ -162,6 +169,8 @@ def Reactor(reactor):
     header_template = dedent("""\
         #ifndef {macro_guard}
         #define {macro_guard}
+
+        #include <nuclear>
 
         {open_namespace}
 
@@ -191,6 +200,9 @@ def Reactor(reactor):
 
     cpp_template = dedent("""\
         #include "{header_file}"
+
+        #include <pybind11/pybind11.h>
+        #include <pybind11/functional.h>
 
         {open_namespace}
 
