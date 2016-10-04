@@ -180,6 +180,9 @@ class Message:
         # Make our value pairs
         fields = indent('\n'.join(['{}'.format(v.generate_cpp_header()) for v in self.fields]))
 
+        # Generate our protobuf class name
+        protobuf_type = '::'.join(('.protobuf' + self.fqn).split('.'))
+
         # Generate our enums c++
         enums = [e.generate_cpp() for e in self.enums]
         enum_headers = indent('\n\n'.join([e[0] for e in enums]))
@@ -201,7 +204,10 @@ class Message:
         converter_impl = '\n\n'.join([protobuf_converter[1]])
 
         header_template = dedent("""\
-            struct alignas(16) {name} {{
+            struct alignas(16) {name} : public ::message::MessageBase {{
+                // Protobuf type
+                using protobuf_type = {protobuf_type};
+
                 // Enum Definitions
             {enums}
                 // Submessage Definitions
@@ -212,8 +218,7 @@ class Message:
             {converters}
                 // Fields
             {fields}
-            }};
-            """);
+            }};""")
 
         impl_template = dedent("""\
             // Constructors
@@ -226,8 +231,7 @@ class Message:
             {enums}
 
             // Submessages
-            {submessages}
-            """);
+            {submessages}""")
 
         # TODO
         # {name}(const YAML::Node& node) {{ CONVERT }}
@@ -241,6 +245,7 @@ class Message:
             enums=enum_headers,
             submessages=submessage_headers,
             constructors=constructor_headers,
+            protobuf_type=protobuf_type,
             converters=converter_headers,
             fields=fields
         ), impl_template.format(
