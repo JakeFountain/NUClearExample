@@ -30,7 +30,7 @@ class Enum:
 
         # Make our fancy enums
         header_template = dedent("""\
-            struct {name} {{
+            struct {name} : public ::message::MessageBase {{
                 enum Value {{
             {values}
                 }};
@@ -76,8 +76,7 @@ class Enum:
                 operator std::string() const;
 
                 operator {protobuf_name}() const;
-            }};
-            """)
+            }};""")
 
         impl_template = dedent("""\
             {fqn}::{name}() : value(Value::{default_value}) {{}}
@@ -153,8 +152,7 @@ class Enum:
 
             {fqn}::operator {protobuf_name}() const {{
                 return static_cast<{protobuf_name}>(value);
-            }}
-            """)
+            }}""")
 
         python_template = dedent("""\
             // Local scope for this enum
