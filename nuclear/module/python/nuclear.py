@@ -121,10 +121,17 @@ class DSLCallback(DSLWord):
 def Reactor(reactor):
 
     # Get the filename of the reactor
-    print(os.path.abspath(inspect.stack()[1].filename))
+    reactor_name = os.path.abspath(inspect.stack()[1].filename)
 
-    # Go up the folders until we find a CMakeLists.txt file (our root dir)
+    # Get the module base directory
+    module_dir = os.getenv('NUCLEAR_MODULE_DIR', '')
+    #NOTE: this is lazy, since it assumes the reactor path is the same as the module path
+    module_depth = len(module_dir.strip(os.sep).split(os.sep))
 
+    # Extract path info
+    reactor_path = reactor_name.split(os.sep)
+    module_path = reactor_path[module_depth:reactor_path.index('src')]
+    reactor_name = module_path[-1]
 
     # Get our reactions
     reactions = inspect.getmembers(reactor, predicate=lambda x: isinstance(x, DSLCallback))
@@ -160,9 +167,9 @@ def Reactor(reactor):
         binders.add(binder_impl.format(func_name=func_name,
             dsl=reaction[1].template_args()))
 
-    class_name = reactor.__name__
-    open_namespace = "namespace TODOOpenNamespace {"
-    close_namespace = "}  // todo TODOOpenNamespace"
+    class_name = str(reactor.__name__)
+    open_namespace = "namespace " + str('::'.join(module_path)) + " {"
+    close_namespace = "}  // " + str('::'.join(module_path))
     macro_guard = "{}_H".format(class_name.upper())
     header_file = "{}.h".format(class_name)
 
@@ -193,10 +200,11 @@ def Reactor(reactor):
 
         #endif  // {macro_guard}""")
 
-    print(header_template.format(class_name=class_name,
-        macro_guard=macro_guard,
-        open_namespace=open_namespace,
-        close_namespace=close_namespace))
+    with open(os.getcwd() + os.sep + reactor_name + '.h', 'w') as f:
+        f.write(header_template.format(class_name=class_name,
+            macro_guard=macro_guard,
+            open_namespace=open_namespace,
+            close_namespace=close_namespace))
 
     cpp_template = dedent("""\
         #include "{header_file}"
@@ -247,11 +255,12 @@ def Reactor(reactor):
 
         {close_namespace}""")
 
-    print(cpp_template.format(header_file=header_file,
-        class_name=class_name,
-        binders=indent('\n\n'.join(binders), 8),
-        open_namespace=open_namespace,
-        close_namespace=close_namespace))
+    with open(os.getcwd() + os.sep + reactor_name + '.cpp', 'w') as f:
+        f.write(cpp_template.format(header_file=header_file,
+            class_name=class_name,
+            binders=indent('\n\n'.join(binders), 8),
+            open_namespace=open_namespace,
+            close_namespace=close_namespace))
 
     return reactor
 
