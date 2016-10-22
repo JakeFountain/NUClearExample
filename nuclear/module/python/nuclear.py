@@ -168,8 +168,10 @@ def Reactor(reactor):
             dsl=reaction[1].template_args()))
 
     class_name = str(reactor.__name__)
-    open_namespace = "namespace " + str('::'.join(module_path)) + " {"
-    close_namespace = "}  // " + str('::'.join(module_path))
+    open_namespace = ''
+    for i,m in enumerate(module_path):
+        open_namespace += ''.join(['    ']*i) + "namespace " + str(m) + " {" + os.linesep
+    close_namespace = ''.join(['}']*len(module_path)) + "  // " + str('::'.join(module_path))
     macro_guard = "{}_H".format(class_name.upper())
     header_file = "{}.h".format(class_name)
 
