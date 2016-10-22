@@ -173,8 +173,8 @@ class Enum:
                     .def(pybind11::self <= {fqn}::Value())
                     .def(pybind11::self >= {fqn}::Value())
                     .def(pybind11::self == {fqn}::Value())
-                    .def_property_readonly_static("include_path", [] {{
-                        return std::string("{include_path}");
+                    .def_static("include_path", [] {{
+                        return "{include_path}";
                     }});
 
                 pybind11::enum_<{fqn}::Value>(enumclass, "Value")

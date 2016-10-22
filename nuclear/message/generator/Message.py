@@ -261,8 +261,8 @@ class Message:
                 context
             {constructor}
             {message_members};
-                context.def_property_readonly_static("include_path", [] {{
-                    return std::string("{include_path}");
+                context.def_static("include_path", [] {{
+                    return "{include_path}";
                 }});
             }}""")
 

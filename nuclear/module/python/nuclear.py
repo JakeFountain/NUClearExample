@@ -16,9 +16,13 @@ class SingleTypeDSLWord(DSLWord):
     def __init__(self, t):
         self._name = self.__class__.__name__
         self._t = t
+        self._include_paths = [ t.include_path() ]
 
     def template_args(self):
         return "{}<::{}::{}>".format(self._name, self._t.__module__.replace('.', '::'), self._t.__name__.replace('.', '::'))
+
+    def include_paths(self):
+        return self._include_paths
 
 class Trigger(SingleTypeDSLWord): pass
 class With(SingleTypeDSLWord): pass
@@ -53,6 +57,9 @@ class Last(DSLWord):
     def runtime_args(self):
         return self._dsl.runtime_args()
 
+    def include_paths(self):
+        return self._dsl.include_paths()
+
 class Optional(DSLWord):
     def __init__(self, dsl):
         self._name = self.__class__.__name__
@@ -63,6 +70,9 @@ class Optional(DSLWord):
 
     def runtime_args(self):
         return self._dsl.runtime_args()
+
+    def include_paths(self):
+        return self._dsl.include_paths()
 
 # Weird types
 
@@ -107,12 +117,17 @@ class DSLCallback(DSLWord):
         self.func = func
         self._t_args = ", ".join(w.template_args() for w in dsl if hasattr(w, 'template_args') and w.template_args())
         self._r_args = ", ".join(w.runtime_args()  for w in dsl if hasattr(w, 'runtime_args')  and w.runtime_args())
+        paths = [w.include_paths() for w in dsl if hasattr(w, 'include_paths') and w.include_paths()]
+        self._include_paths = [b for a in paths for b in a]
 
     def template_args(self):
         return self._t_args
 
     def runtime_args(self):
         return self._r_args
+
+    def include_paths(self):
+        return self._include_paths
 
     def function(self):
         return self.func
@@ -159,6 +174,7 @@ def Reactor(reactor):
         }});""")
 
     binders = set()
+    includes = set()
 
     # Loop through our reactions and add handler functions for them
     for reaction in reactions:
@@ -166,6 +182,9 @@ def Reactor(reactor):
 
         binders.add(binder_impl.format(func_name=func_name,
             dsl=reaction[1].template_args()))
+
+        for include in reaction[1].include_paths():
+            includes.add('#include "{}"'.format(include))
 
     class_name = str(reactor.__name__)
     open_namespace = ''
@@ -212,6 +231,8 @@ def Reactor(reactor):
 
     cpp_template = dedent("""\
         #include "{header_file}"
+
+        {includes}
 
         #include <pybind11/pybind11.h>
         #include <pybind11/functional.h>
@@ -270,6 +291,7 @@ def Reactor(reactor):
     with open(os.getcwd() + os.sep + reactor_name + '.cpp', 'w') as f:
         f.write(cpp_template.format(header_file=header_file,
             class_name=class_name,
+            includes='\n'.join(includes),
             binders=indent('\n\n'.join(binders), 8),
             open_namespace=open_namespace,
             close_namespace=close_namespace))
