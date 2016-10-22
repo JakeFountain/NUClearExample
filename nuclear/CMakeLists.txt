@@ -17,6 +17,9 @@ OPTION(NUCLEAR_ENHANCED_MESSAGES "Use a protocol buffer based enhanced messaging
 # Our banner file for placing at the top of the roles
 SET(NUCLEAR_ROLE_BANNER_FILE "${CMAKE_CURRENT_SOURCE_DIR}/roles/banner.txt" CACHE PATH "The path the banner to print at the start of each role execution")
 
+# Our location of our nuclear roles directory
+SET(NUCLEAR_ROLES_DIR "${CMAKE_CURRENT_SOURCE_DIR}" CACHE PATH "The path to the nuclear roles system directory")
+
 # Our variables that are used to locate the shared, module, and message folders
 SET(NUCLEAR_MODULE_DIR "${CMAKE_SOURCE_DIR}/module"              CACHE PATH "The path to the module directory for NUClear")
 SET(NUCLEAR_MESSAGE_DIR "${CMAKE_SOURCE_DIR}/shared/message"     CACHE PATH "The path to the message directory for NUClear")
