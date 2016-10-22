@@ -6,6 +6,7 @@ class Enum:
         self.name = e.name
         self.fqn = '{}.{}'.format(context.fqn, self.name)
         self.values = [(v.name, v.number) for v in e.value]
+        self.include_path = context.include_path
         # e.name contains the name of the enum
         # e.value is a list of enum values
         # e.options is a set of enum options (allow_alias, deprecated, list of uninterpreted options)
@@ -171,7 +172,10 @@ class Enum:
                     .def(pybind11::self > {fqn}::Value())
                     .def(pybind11::self <= {fqn}::Value())
                     .def(pybind11::self >= {fqn}::Value())
-                    .def(pybind11::self == {fqn}::Value());
+                    .def(pybind11::self == {fqn}::Value())
+                    .def_property_readonly_static("include_path", [] {{
+                        return std::string("{include_path}");
+                    }});
 
                 pybind11::enum_<{fqn}::Value>(enumclass, "Value")
             {value_list}
@@ -192,6 +196,7 @@ class Enum:
         ), python_template.format(
             fqn='::'.join(self.fqn.split('.')),
             name=self.name,
+            include_path=self.include_path,
             value_list=indent('\n'.join('.value("{name}", {fqn}::{name})'.format(name=v[0], fqn=self.fqn.replace('.', '::')) for v in self.values), 8)
         )
 

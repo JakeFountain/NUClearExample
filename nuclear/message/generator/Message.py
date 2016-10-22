@@ -7,6 +7,7 @@ class Message:
     def __init__(self, m, context):
         self.name = m.name
         self.fqn = '{}.{}'.format(context.fqn, self.name)
+        self.include_path = context.include_path
         self.enums = [Enum(e, self) for e in m.enum_type]
 
         # Get all the submessages that are not map entries
@@ -260,6 +261,9 @@ class Message:
                 context
             {constructor}
             {message_members};
+                context.def_property_readonly_static("include_path", [] {{
+                    return std::string("{include_path}");
+                }});
             }}""")
 
         python_members = '\n'.join('.def_readwrite("{field}", &{fqn}::{field})'.format(field=f.name, fqn=self.fqn.replace('.', '::')) for f in self.fields)
@@ -289,6 +293,7 @@ class Message:
         ), python_template.format(
             constructor=indent(python_constructor, 8),
             message_members=indent(python_members, 8),
+            include_path=self.include_path,
             fqn=self.fqn.replace('.', '::'),
             name=self.name,
             submessages=indent(submessage_python),

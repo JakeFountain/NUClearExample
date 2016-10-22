@@ -5,11 +5,13 @@ import re
 
 
 class File:
-    def __init__(self, f):
+    def __init__(self, f, base_file):
 
         # Store relevant information from our class in our object
         self.package = f.package
         self.name = f.name
+        self.base_file = base_file
+        self.include_path = "{}.h".format(base_file)
         self.fqn = '.{}'.format(self.package)
         self.dependencies = [d for d in f.dependency]
         self.enums = [Enum(e, self) for e in f.enum_type]

@@ -14,7 +14,7 @@ with open('{}.pb'.format(base_file), 'rb') as f:
     assert(len(d.file) == 1)
 
     # Load the file
-    b = generator.File.File(d.file[0])
+    b = generator.File.File(d.file[0], base_file)
 
     # Generate the c++ file
     header, impl, python = b.generate_cpp()
