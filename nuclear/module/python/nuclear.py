@@ -21,6 +21,9 @@ class SingleTypeDSLWord(DSLWord):
     def template_args(self):
         return "{}<::{}::{}>".format(self._name, self._t.__module__.replace('.', '::'), self._t.__name__.replace('.', '::'))
 
+    def input_types(self):
+        return ["std::shared_ptr<const {}::{}>".format(self._t.__module__.replace('.', '::'), self._t.__name__.replace('.', '::'))]
+
     def include_paths(self):
         return self._include_paths
 
@@ -115,16 +118,25 @@ class DSLCallback(DSLWord):
 
     def __init__(self, func, *dsl):
         self.func = func
+
         self._t_args = ", ".join(w.template_args() for w in dsl if hasattr(w, 'template_args') and w.template_args())
+
         self._r_args = ", ".join(w.runtime_args()  for w in dsl if hasattr(w, 'runtime_args')  and w.runtime_args())
+
         paths = [w.include_paths() for w in dsl if hasattr(w, 'include_paths') and w.include_paths()]
         self._include_paths = [b for a in paths for b in a]
+
+        inputs = [w.input_types() for w in dsl if hasattr(w, 'input_types') and w.input_types()]
+        self._i_args = [b for a in inputs for b in a]
 
     def template_args(self):
         return self._t_args
 
     def runtime_args(self):
         return self._r_args
+
+    def input_types(self):
+        return self._i_args
 
     def include_paths(self):
         return self._include_paths
@@ -155,7 +167,7 @@ def Reactor(reactor):
         // Binding function for the dsl on<{dsl}>
         m.def("bind_{func_name}", [this] (pybind11::function fn) {{
 
-            return on<{dsl}>().then([this, fn] (args...) {{
+            return on<{dsl}>().then([this, fn] ({input_args}) {{
 
                 // Create our thread state for this thread if it doesn't exist
                 if (!thread_state) {{
@@ -166,7 +178,7 @@ def Reactor(reactor):
                 PyEval_RestoreThread(thread_state);
 
                 // Run the python function
-                fn(self, args...);
+                fn(self, {input_vars});
 
                 // Release the GIL and set our thread back to nullptr
                 PyEval_SaveThread();
@@ -180,8 +192,15 @@ def Reactor(reactor):
     for reaction in reactions:
         func_name = re.sub(r'(?:\W|^(?=\d))+', '_', reaction[1].template_args())
 
+        input_types = reaction[1].input_types()
+        input_vars = ['var{}'.format(i) for i in range(len(input_types))]
+        input_args = ['{} {}'.format(arg, var) for arg, var in zip(input_types, input_vars)]
+
         binders.add(binder_impl.format(func_name=func_name,
-            dsl=reaction[1].template_args()))
+                                       dsl=reaction[1].template_args(),
+                                       input_args=', '.join(input_args),
+                                       input_types=', '.join(input_types),
+                                       input_vars=', '.join(input_vars)))
 
         for include in reaction[1].include_paths():
             includes.add('#include "{}"'.format(include))
