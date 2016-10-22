@@ -180,6 +180,7 @@ def Reactor(reactor):
         #define {macro_guard}
 
         #include <nuclear>
+        #include <Python.h>
 
         {open_namespace}
 
@@ -196,11 +197,12 @@ def Reactor(reactor):
                 PyObject* self = nullptr;
 
                 // The thread state for this thread/interpreter combination
-                thread_local PyThreadState* thread_state = nullptr;
+                static thread_local PyThreadState* thread_state;
             }};
         {close_namespace}
 
-        #endif  // {macro_guard}""")
+        #endif  // {macro_guard}
+        """)
 
     with open(os.getcwd() + os.sep + reactor_name + '.h', 'w') as f:
         f.write(header_template.format(class_name=class_name,
@@ -214,7 +216,14 @@ def Reactor(reactor):
         #include <pybind11/pybind11.h>
         #include <pybind11/functional.h>
 
+        // Declare our message init function (comes from the messages code)
+        extern "C" {{
+            PyObject* PyInit_message();
+        }}
+
         {open_namespace}
+
+            thread_local PyThreadState* {class_name}::thread_state = nullptr;
 
             {class_name}::{class_name}(std::unique_ptr<NUClear::Environment> environment)
             : Reactor(std::move(environment)) {{
@@ -238,7 +247,7 @@ def Reactor(reactor):
                 interpreter = thread_state->interp;
 
                 // Create a module object that holds our binding functions
-                pybind11::module module("nuclear", "Binding functions for the current nuclear reactor");
+                pybind11::module m("nuclear", "Binding functions for the current nuclear reactor");
 
                 // Create a function that binds the self object for passing into callbacks
                 m.def("bind_self", [this] (PyObject* obj) {{
@@ -250,12 +259,13 @@ def Reactor(reactor):
                 // Take our created module and add it to this subinterpreters imports
                 PyImport_AddModule("nuclear_reactor");
                 PyObject* sys_modules = PyImport_GetModuleDict();
-                PyDict_SetItemString(sys_modules, "nuclear_reactor", module.ptr());
+                PyDict_SetItemString(sys_modules, "nuclear_reactor", m.ptr());
 
                 // Now open up our main python file and run it to bind all the functions
             }}
 
-        {close_namespace}""")
+        {close_namespace}
+        """)
 
     with open(os.getcwd() + os.sep + reactor_name + '.cpp', 'w') as f:
         f.write(cpp_template.format(header_file=header_file,
