@@ -302,6 +302,7 @@ def Reactor(reactor):
                 PyDict_SetItemString(sys_modules, "nuclear_reactor", m.ptr());
 
                 // Now open up our main python file and run it to bind all the functions
+                PyRun_SimpleFile(fopen("{python_file}", "r"), "{python_file}");
             }}
 
         {close_namespace}
@@ -311,6 +312,7 @@ def Reactor(reactor):
         f.write(cpp_template.format(header_file=header_file,
             class_name=class_name,
             includes='\n'.join(includes),
+            python_file="../module/example/PythonExample/src/PythonExample.py",
             binders=indent('\n\n'.join(binders), 8),
             open_namespace=open_namespace,
             close_namespace=close_namespace))
