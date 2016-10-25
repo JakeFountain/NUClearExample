@@ -301,6 +301,15 @@ def Reactor(reactor):
                 PyObject* sys_modules = PyImport_GetModuleDict();
                 PyDict_SetItemString(sys_modules, "nuclear_reactor", m.ptr());
 
+                // Setup our search path so that it can find other files and nuclear.py
+                PyObject* sysPath = PySys_GetObject("path");
+
+                pybind11::str nuclear_path("../nuclear/module/python");
+                pybind11::str script_path("../module/example/PythonExample/src");
+
+                PyList_Append(sysPath, nuclear_path.ptr());
+                PyList_Append(sysPath, script_path.ptr());
+
                 // Now open up our main python file and run it to bind all the functions
                 PyRun_SimpleFile(fopen("{python_file}", "r"), "{python_file}");
             }}
