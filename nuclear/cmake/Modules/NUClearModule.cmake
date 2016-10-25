@@ -2,7 +2,7 @@ INCLUDE(CMakeParseArguments)
 FUNCTION(NUCLEAR_MODULE)
 
     # Get our relative module path
-    FILE(RELATIVE_PATH module_path ${NUCLEAR_MODULE_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
+    FILE(RELATIVE_PATH module_path "${PROJECT_SOURCE_DIR}/${NUCLEAR_MODULE_DIR}" ${CMAKE_CURRENT_SOURCE_DIR})
 
     # Fix windows paths
     STRING(REPLACE "\\" "/" module_name "${module_path}")
@@ -28,7 +28,7 @@ FUNCTION(NUCLEAR_MODULE)
 
         # Calculate the Output Directory
         FILE(RELATIVE_PATH output_file "${CMAKE_CURRENT_SOURCE_DIR}/data" ${data_file})
-        SET(output_file "${CMAKE_BINARY_DIR}/${output_file}")
+        SET(output_file "${PROJECT_BINARY_DIR}/${output_file}")
 
         # Add the file we will generate to our output
         LIST(APPEND data "${output_file}")
@@ -67,7 +67,7 @@ FUNCTION(NUCLEAR_MODULE)
     # Add all our code to a library and if we are doing a shared build make it a shared library
     IF(NUCLEAR_SHARED_BUILD)
         ADD_LIBRARY(${module_name} SHARED ${src} ${MODULE_SOURCES} ${data} ${data_files})
-        SET_PROPERTY(TARGET ${module_name} PROPERTY LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/lib")
+        SET_PROPERTY(TARGET ${module_name} PROPERTY LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin/lib")
     ELSE()
         ADD_LIBRARY(${module_name} STATIC ${src} ${MODULE_SOURCES} ${data} ${data_files})
     ENDIF()

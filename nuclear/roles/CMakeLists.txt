@@ -1,6 +1,6 @@
 # Get our role directories
-SET(role_source_dir "${CMAKE_SOURCE_DIR}/roles")
-SET(role_binary_dir "${CMAKE_BINARY_DIR}/role")
+SET(role_source_dir "${PROJECT_SOURCE_DIR}/roles")
+SET(role_binary_dir "${PROJECT_BINARY_DIR}/role")
 
 # This gets all of our source files
 FILE(GLOB rolefiles "${role_source_dir}/*.role")
