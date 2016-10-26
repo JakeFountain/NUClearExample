@@ -187,36 +187,25 @@ def Reactor(reactor):
 
                 on<{dsl}>().then([this, fn] ({input_args}) {{
 
-                    log("Got a message in cpp bindings");
-
-                    // RAII aquire the gil
-                    pybind11::gil_scoped_acquire gil;
-
-                    log("Aquired the gil");
-
                     // Create our thread state for this thread if it doesn't exist
                     if (!thread_state) {{
-
-                        log("Creating a new thread state");
                         thread_state = PyThreadState_New(interpreter);
                     }}
 
-                    log("Getting our thrad state");
-
                     // Load our thread state
-                    auto oldstate = PyThreadState_Swap(thread_state);
-
-                    log("Executing the python function");
+                    PyEval_RestoreThread(thread_state);
 
                     // Run the python function
-                    fn(self, {input_vars});
+                    try {{
+                        fn(self, {input_vars});
+                    }}
+                    catch(...) {{
+                        // Finished with python
+                        PyEval_SaveThread();
+                        std::rethrow_exception(std::current_exception());
+                    }}
 
-                    log("Swapping back thread state");
-
-                    // Swap back to our old thread state
-                    PyThreadState_Swap(oldstate);
-
-                    log("Releasing the GIL");
+                    PyEval_SaveThread();
                 }});
             }});""")
 
@@ -313,8 +302,8 @@ def Reactor(reactor):
                         PyEval_ReleaseLock();
                     }}
 
-                    // RAII aquire the gil
-                    pybind11::gil_scoped_acquire gil;
+                    // Acquire the gil
+                    PyEval_AcquireLock();
 
                     // This sets the threadstate/interpreter combination for
                     // the thread that creates this interperter
@@ -349,6 +338,9 @@ def Reactor(reactor):
 
                     // Now open up our main python file and run it to bind all the functions
                     PyRun_SimpleFile(fopen("{python_file}", "r"), "{python_file}");
+
+                    // Release the GIL
+                    PyEval_ReleaseLock();
                 }}
 
             {close_namespace}
