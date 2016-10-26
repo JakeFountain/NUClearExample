@@ -304,8 +304,8 @@ def Reactor(reactor):
                 // Setup our search path so that it can find other files and nuclear.py
                 PyObject* sysPath = PySys_GetObject("path");
 
-                pybind11::str nuclear_path({nuclear_directory}"../nuclear/module/python");
-                pybind11::str script_path({reactor_directory});
+                pybind11::str nuclear_path("{nuclear_directory}");
+                pybind11::str script_path("{reactor_directory}");
 
                 PyList_Append(sysPath, nuclear_path.ptr());
                 PyList_Append(sysPath, script_path.ptr());
@@ -321,9 +321,9 @@ def Reactor(reactor):
         f.write(cpp_template.format(header_file=header_file,
             class_name=class_name,
             includes='\n'.join(includes),
-            nuclear_directory = os.sep.join(['..', 'nuclear', 'module', 'python']),
+            nuclear_directory = os.sep.join(['python', 'nuclear']),
             reactor_directory = 'python' + os.sep + os.sep.join(reactor_path[module_depth:reactor_path.index('src')]),
-            python_file= '..' + os.sep + os.sep.join(reactor_path[module_depth:]), #"../module/example/PythonExample/src/PythonExample.py",
+            python_file= '..' + os.sep + os.sep.join(reactor_path[module_depth:]),
             binders=indent('\n\n'.join(binders), 8),
             open_namespace=open_namespace,
             close_namespace=close_namespace))
