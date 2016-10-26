@@ -1,14 +1,5 @@
 INCLUDE(CMakeParseArguments)
 
-# This makes a link for nuclear.py so it can be used by python modules
-FILE(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/python/nuclear")
-ADD_CUSTOM_COMMAND(
-    OUTPUT "${PROJECT_BINARY_DIR}/python/nuclear/nuclear.py"
-    COMMAND ${CMAKE_COMMAND} -E create_symlink "${NUCLEAR_ROLES_DIR}/module/python/nuclear.py" "${PROJECT_BINARY_DIR}/python/nuclear/nuclear.py"
-    DEPENDS "${NUCLEAR_ROLES_DIR}/module/python/nuclear.py"
-    COMMENT "Creating a symbolic link for nuclear.py"
-)
-
 FUNCTION(NUCLEAR_MODULE)
 
     GET_FILENAME_COMPONENT(module_name ${CMAKE_CURRENT_SOURCE_DIR} NAME)
@@ -64,6 +55,15 @@ FUNCTION(NUCLEAR_MODULE)
         FIND_PACKAGE(PythonInterp 3 REQUIRED)
         FIND_PACKAGE(pybind11 REQUIRED)
         FIND_PACKAGE(PythonLibsNew 3 REQUIRED)
+
+        # This makes a link for nuclear.py so it can be used by python modules
+        FILE(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/python/nuclear")
+        ADD_CUSTOM_COMMAND(
+            OUTPUT "${PROJECT_BINARY_DIR}/python/nuclear/nuclear.py"
+            COMMAND ${CMAKE_COMMAND} -E create_symlink "${NUCLEAR_ROLES_DIR}/module/python/nuclear.py" "${PROJECT_BINARY_DIR}/python/nuclear/nuclear.py"
+            DEPENDS "${NUCLEAR_ROLES_DIR}/module/python/nuclear.py"
+            COMMENT "Creating a symbolic link for nuclear.py"
+        )
 
         # Now copy all our python files across to the python directory of output
         FILE(GLOB_RECURSE python_files "${CMAKE_CURRENT_SOURCE_DIR}/src/**.py")
