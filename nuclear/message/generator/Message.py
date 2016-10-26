@@ -217,7 +217,7 @@ class Message:
         converter_impl = '\n\n'.join([protobuf_converter[1]])
 
         header_template = dedent("""\
-            struct alignas(16) {name} : public ::message::MessageBase {{
+            struct alignas(16) {name} : public ::message::MessageBase<{name}> {{
                 // Protobuf type
                 using protobuf_type = {protobuf_type};
 
@@ -250,7 +250,7 @@ class Message:
             // Local scope for this message
             {{
                 // Use our context and assign a new one to a shadow
-                auto shadow = pybind11::class_<{fqn}>(context, "{name}");
+                auto shadow = pybind11::class_<{fqn}, std::shared_ptr<{fqn}>>(context, "{name}");
 
                 // Shadow our context with our new context and declare our subclasses
                 auto& context = shadow;

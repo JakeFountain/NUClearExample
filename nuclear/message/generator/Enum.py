@@ -31,7 +31,7 @@ class Enum:
 
         # Make our fancy enums
         header_template = dedent("""\
-            struct {name} : public ::message::MessageBase {{
+            struct {name} : public ::message::MessageBase<{name}> {{
                 enum Value {{
             {values}
                 }};
@@ -158,7 +158,7 @@ class Enum:
         python_template = dedent("""\
             // Local scope for this enum
             {{
-                auto enumclass = pybind11::class_<{fqn}>(context, "{name}")
+                auto enumclass = pybind11::class_<{fqn}, std::shared_ptr<{fqn}>>(context, "{name}")
                     .def(pybind11::init<>())
                     .def(pybind11::init<int const&>())
                     .def(pybind11::init<{fqn}::Value const&>())
