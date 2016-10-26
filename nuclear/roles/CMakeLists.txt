@@ -49,7 +49,7 @@ FOREACH(var ${vars})
 ENDFOREACH()
 
 # We need the NUClear role function here so it can be used in the role files
-INCLUDE(NUClearRole)
+INCLUDE(NUClearRole.cmake)
 
 # Clear our NUClear modules variable so we can repopulate it
 UNSET(NUCLEAR_MODULES CACHE)

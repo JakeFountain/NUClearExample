@@ -13,7 +13,7 @@ FUNCTION(NUCLEAR_MODULE)
     STRING(REPLACE "/" "" module_name "${module_name}")
 
     SET(options, "")
-    SET(oneValueArgs "NAME")
+    SET(oneValueArgs "LANGUAGE")
     SET(multiValueArgs "INCLUDES" "LIBRARIES" "SOURCES")
     CMAKE_PARSE_ARGUMENTS(MODULE "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 

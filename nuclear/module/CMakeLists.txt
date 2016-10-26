@@ -1,5 +1,5 @@
 # We use NUClearModule
-INCLUDE(NUClearModule)
+INCLUDE(NUClearModule.cmake)
 
 # Remove any duplicate modules (used in more then one role)
 SET(modules ${NUCLEAR_MODULES})
