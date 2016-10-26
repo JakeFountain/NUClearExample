@@ -22,7 +22,7 @@ class SingleTypeDSLWord(DSLWord):
         return "{}<::{}::{}>".format(self._name, self._t.__module__.replace('.', '::'), self._t.__name__.replace('.', '::'))
 
     def input_types(self):
-        return ["std::shared_ptr<const {}::{}>".format(self._t.__module__.replace('.', '::'), self._t.__name__.replace('.', '::'))]
+        return ["const {}::{}&".format(self._t.__module__.replace('.', '::'), self._t.__name__.replace('.', '::'))]
 
     def include_paths(self):
         return self._include_paths

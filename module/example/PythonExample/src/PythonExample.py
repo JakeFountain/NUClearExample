@@ -10,5 +10,5 @@ class PythonExample(object):
         print("Constructing PythonExample in python")
 
     @on(Trigger(ExampleMessage), With(ExampleMessage), Single())
-    def example_callback(self, data):
-        print(self, data)
+    def example_callback(self, trigger_data, with_data):
+        print(self, trigger_data.timestamp, with_data.timestamp)
