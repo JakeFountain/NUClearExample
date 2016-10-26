@@ -147,18 +147,21 @@ class DSLCallback(DSLWord):
 # Decorator for creating instance variables/setting up reactor
 def Reactor(reactor):
 
-    # Get the filename of the reactor
-    reactor_name = os.path.abspath(inspect.stack()[1].filename)
+    # Get the filename of the reactor (presumably the person who included us)
+    reactor_abs_path = os.path.abspath(inspect.stack()[1].filename)
 
-    # Get the module base directory
-    module_dir = os.getenv('NUCLEAR_MODULE_DIR', '')
-    #NOTE: this is lazy, since it assumes the reactor path is the same as the module path
-    module_depth = len(module_dir.strip(os.sep).split(os.sep))
+    # Get the module base directory or default to our current dir
+    module_dir = os.path.normpath(os.getenv('NUCLEAR_MODULE_DIR', os.getcwd()))
 
-    # Extract path info
-    reactor_path = reactor_name.split(os.sep)
-    module_path = reactor_path[module_depth:reactor_path.index('src')]
-    reactor_name = module_path[-1]
+    # Get the path for the reactor code
+    reactor_path = os.path.relpath(reactor_abs_path, module_dir)
+    # Strip to the src directory
+    reactor_dir = os.path.dirname(reactor_path)
+    # Strip to the name of the module
+    reactor_namespace = os.path.join('module', os.path.dirname(os.path.dirname(reactor_dir)))
+
+    # Get the reactor name (the name of the class)
+    reactor_name = reactor.__name__
 
     # Get our reactions
     reactions = inspect.getmembers(reactor, predicate=lambda x: isinstance(x, DSLCallback))
@@ -205,13 +208,11 @@ def Reactor(reactor):
         for include in reaction[1].include_paths():
             includes.add('#include "{}"'.format(include))
 
-    class_name = str(reactor.__name__)
-    open_namespace = ''
-    for i, m in enumerate(module_path[:-1]):
-        open_namespace += "namespace " + str(m) + " {" + os.linesep
-    close_namespace = ' '.join(['}']*(len(module_path) - 1)) + "  // " + str('::'.join(module_path))
-    macro_guard = "{}_H".format(class_name.upper())
-    header_file = "{}.h".format(class_name)
+    macro_guard = "{}_H".format(reactor_name.upper())
+    header_file = "{}.h".format(reactor_name)
+    open_namespace  = '\n'.join('namespace {} {{'.format(n) for n in reactor_namespace.split(os.path.sep))
+    close_namespace = '\n'.join('}}  // namespace {}'.format(n) for n in reactor_namespace.split(os.path.sep))
+
 
     header_template = dedent("""\
         #ifndef {macro_guard}
@@ -243,7 +244,7 @@ def Reactor(reactor):
         """)
 
     with open(os.getcwd() + os.sep + reactor_name + '.h', 'w') as f:
-        f.write(header_template.format(class_name=class_name,
+        f.write(header_template.format(class_name=reactor_name,
                                        macro_guard=macro_guard,
                                        open_namespace=open_namespace,
                                        close_namespace=close_namespace))
@@ -319,11 +320,11 @@ def Reactor(reactor):
 
     with open(os.getcwd() + os.sep + reactor_name + '.cpp', 'w') as f:
         f.write(cpp_template.format(header_file=header_file,
-                                    class_name=class_name,
+                                    class_name=reactor_name,
                                     includes='\n'.join(includes),
-                                    nuclear_directory=os.sep.join(['python', 'nuclear']),
-                                    reactor_directory='python' + os.sep + os.sep.join(reactor_path[module_depth:reactor_path.index('src')]),
-                                    python_file='..' + os.sep + os.sep.join(reactor_path[module_depth:]),
+                                    nuclear_directory=os.path.join('python', 'nuclear'),
+                                    reactor_directory=os.path.join('python', reactor_dir),
+                                    python_file=os.path.join('python', reactor_path),
                                     binders=indent('\n\n'.join(binders), 8),
                                     open_namespace=open_namespace,
                                     close_namespace=close_namespace))
