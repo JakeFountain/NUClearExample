@@ -147,187 +147,223 @@ class DSLCallback(DSLWord):
 # Decorator for creating instance variables/setting up reactor
 def Reactor(reactor):
 
-    # Get the filename of the reactor (presumably the person who included us)
-    reactor_abs_path = os.path.abspath(inspect.stack()[1].filename)
+    try:
+        # If we can import this we are running in nuclear, so run
+        import nuclear_reactor
 
-    # Get the module base directory or default to our current dir
-    module_dir = os.path.normpath(os.getenv('NUCLEAR_MODULE_DIR', os.getcwd()))
+        # Bind an instance of this reactor into nuclear
+        nuclear_reactor.bind_self(reactor())
 
-    # Get the path for the reactor code
-    reactor_path = os.path.relpath(reactor_abs_path, module_dir)
-    # Strip to the src directory
-    reactor_dir = os.path.dirname(reactor_path)
-    # Strip to the name of the module
-    reactor_namespace = os.path.join('module', os.path.dirname(os.path.dirname(reactor_dir)))
+        # Go through all of our DSL callbacks to bind them
+        reactions = inspect.getmembers(reactor, predicate=lambda x: isinstance(x, DSLCallback))
+        for reaction in reactions:
+            func_name = 'bind_{}'.format(re.sub(r'(?:\W|^(?=\d))+', '_', reaction[1].template_args()))
+            getattr(nuclear_reactor, func_name)(reaction[1].function())
 
-    # Get the reactor name (the name of the class)
-    reactor_name = reactor.__name__
+    # If we don't have nuclear_reactor defined, we generate the c++
+    except ImportError:
+        # Get the filename of the reactor (presumably the person who included us)
+        reactor_abs_path = os.path.abspath(inspect.stack()[1].filename)
 
-    # Get our reactions
-    reactions = inspect.getmembers(reactor, predicate=lambda x: isinstance(x, DSLCallback))
+        # Get the module base directory or default to our current dir
+        module_dir = os.path.normpath(os.getenv('NUCLEAR_MODULE_DIR', os.getcwd()))
 
-    binder_impl = dedent("""\
-        // Binding function for the dsl on<{dsl}>
-        m.def("bind_{func_name}", [this] (pybind11::function fn) {{
+        # Get the path for the reactor code
+        reactor_path = os.path.relpath(reactor_abs_path, module_dir)
+        # Strip to the src directory
+        reactor_dir = os.path.dirname(reactor_path)
+        # Strip to the name of the module
+        reactor_namespace = os.path.join('module', os.path.dirname(os.path.dirname(reactor_dir)))
 
-            return on<{dsl}>().then([this, fn] ({input_args}) {{
+        # Get the reactor name (the name of the class)
+        reactor_name = reactor.__name__
 
-                // Create our thread state for this thread if it doesn't exist
-                if (!thread_state) {{
-                    thread_state = PyThreadState_New(interpreter);
-                }}
+        # Get our reactions
+        reactions = inspect.getmembers(reactor, predicate=lambda x: isinstance(x, DSLCallback))
 
-                // Load our thread state and obtain the GIL
-                PyEval_RestoreThread(thread_state);
+        binder_impl = dedent("""\
+            // Binding function for the dsl on<{dsl}>
+            m.def("bind_{func_name}", [this] (pybind11::function fn) {{
 
-                // Run the python function
-                fn(self, {input_vars});
+                on<{dsl}>().then([this, fn] ({input_args}) {{
 
-                // Release the GIL and set our thread back to nullptr
-                PyEval_SaveThread();
-            }});
-        }});""")
+                    log("Got a message in cpp bindings");
 
-    binders = set()
-    includes = set()
+                    // RAII aquire the gil
+                    pybind11::gil_scoped_acquire gil;
 
-    # Loop through our reactions and add handler functions for them
-    for reaction in reactions:
-        func_name = re.sub(r'(?:\W|^(?=\d))+', '_', reaction[1].template_args())
+                    log("Aquired the gil");
 
-        input_types = reaction[1].input_types()
-        input_vars = ['var{}'.format(i) for i in range(len(input_types))]
-        input_args = ['{} {}'.format(arg, var) for arg, var in zip(input_types, input_vars)]
+                    // Create our thread state for this thread if it doesn't exist
+                    if (!thread_state) {{
 
-        binders.add(binder_impl.format(func_name=func_name,
-                                       dsl=reaction[1].template_args(),
-                                       input_args=', '.join(input_args),
-                                       input_types=', '.join(input_types),
-                                       input_vars=', '.join(input_vars)))
+                        log("Creating a new thread state");
+                        thread_state = PyThreadState_New(interpreter);
+                    }}
 
-        for include in reaction[1].include_paths():
-            includes.add('#include "{}"'.format(include))
+                    log("Getting our thrad state");
 
-    macro_guard = "{}_H".format(reactor_name.upper())
-    header_file = "{}.h".format(reactor_name)
-    open_namespace  = '\n'.join('namespace {} {{'.format(n) for n in reactor_namespace.split(os.path.sep))
-    close_namespace = '\n'.join('}}  // namespace {}'.format(n) for n in reactor_namespace.split(os.path.sep))
+                    // Load our thread state
+                    auto oldstate = PyThreadState_Swap(thread_state);
 
+                    log("Executing the python function");
 
-    header_template = dedent("""\
-        #ifndef {macro_guard}
-        #define {macro_guard}
+                    // Run the python function
+                    fn(self, {input_vars});
 
-        #include <nuclear>
-        #include <Python.h>
+                    log("Swapping back thread state");
 
-        {open_namespace}
+                    // Swap back to our old thread state
+                    PyThreadState_Swap(oldstate);
 
-            class {class_name} : public NUClear::Reactor {{
-            public:
-                // Constructor
-                explicit {class_name}(std::unique_ptr<NUClear::Environment> environment);
-
-            private:
-                // The subinterpreter for this module
-                PyInterpreterState* interpreter = nullptr;
-
-                // The self object for this module
-                PyObject* self = nullptr;
-
-                // The thread state for this thread/interpreter combination
-                static thread_local PyThreadState* thread_state;
-            }};
-        {close_namespace}
-
-        #endif  // {macro_guard}
-        """)
-
-    with open(os.getcwd() + os.sep + reactor_name + '.h', 'w') as f:
-        f.write(header_template.format(class_name=reactor_name,
-                                       macro_guard=macro_guard,
-                                       open_namespace=open_namespace,
-                                       close_namespace=close_namespace))
-
-    cpp_template = dedent("""\
-        #include "{header_file}"
-
-        {includes}
-
-        #include <pybind11/pybind11.h>
-        #include <pybind11/functional.h>
-
-        // Declare our message init function (comes from the messages code)
-        extern "C" {{
-            PyObject* PyInit_message();
-        }}
-
-        {open_namespace}
-
-            thread_local PyThreadState* {class_name}::thread_state = nullptr;
-
-            {class_name}::{class_name}(std::unique_ptr<NUClear::Environment> environment)
-            : Reactor(std::move(environment)) {{
-                // If python hasn't been used in another module yet
-                if (!Py_IsInitialized()) {{
-                    // Add our message to our initilsation
-                    PyImport_AppendInittab("message", &PyInit_message);
-
-                    // Initialise without signal handlers
-                    Py_InitializeEx(0);
-
-                    // Initialise using threads in python
-                    PyEval_InitThreads();
-                }}
-
-                // This sets the threadstate/interpreter combination for
-                // the thread that creates this interperter
-                thread_state = Py_NewInterpreter();
-
-                // Store a pointer to our newly created interpreter
-                interpreter = thread_state->interp;
-
-                // Create a module object that holds our binding functions
-                pybind11::module m("nuclear", "Binding functions for the current nuclear reactor");
-
-                // Create a function that binds the self object for passing into callbacks
-                m.def("bind_self", [this] (PyObject* obj) {{
-                    self = obj;
+                    log("Releasing the GIL");
                 }});
+            }});""")
 
-        {binders}
+        binders = set()
+        includes = set()
 
-                // Take our created module and add it to this subinterpreters imports
-                PyImport_AddModule("nuclear_reactor");
-                PyObject* sys_modules = PyImport_GetModuleDict();
-                PyDict_SetItemString(sys_modules, "nuclear_reactor", m.ptr());
+        # Loop through our reactions and add handler functions for them
+        for reaction in reactions:
+            func_name = re.sub(r'(?:\W|^(?=\d))+', '_', reaction[1].template_args())
 
-                // Setup our search path so that it can find other files and nuclear.py
-                PyObject* sysPath = PySys_GetObject("path");
+            input_types = reaction[1].input_types()
+            input_vars = ['var{}'.format(i) for i in range(len(input_types))]
+            input_args = ['{} {}'.format(arg, var) for arg, var in zip(input_types, input_vars)]
 
-                pybind11::str nuclear_path("{nuclear_directory}");
-                pybind11::str script_path("{reactor_directory}");
+            binders.add(binder_impl.format(func_name=func_name,
+                                           dsl=reaction[1].template_args(),
+                                           input_args=', '.join(input_args),
+                                           input_types=', '.join(input_types),
+                                           input_vars=', '.join(input_vars)))
 
-                PyList_Append(sysPath, nuclear_path.ptr());
-                PyList_Append(sysPath, script_path.ptr());
+            for include in reaction[1].include_paths():
+                includes.add('#include "{}"'.format(include))
 
-                // Now open up our main python file and run it to bind all the functions
-                PyRun_SimpleFile(fopen("{python_file}", "r"), "{python_file}");
+        macro_guard = "{}_H".format(reactor_name.upper())
+        header_file = "{}.h".format(reactor_name)
+        open_namespace  = '\n'.join('namespace {} {{'.format(n) for n in reactor_namespace.split(os.path.sep))
+        close_namespace = '\n'.join('}}  // namespace {}'.format(n) for n in reactor_namespace.split(os.path.sep))
+
+
+        header_template = dedent("""\
+            #ifndef {macro_guard}
+            #define {macro_guard}
+
+            #include <nuclear>
+            #include <pybind11/pybind11.h>
+            #include <Python.h>
+
+            {open_namespace}
+
+                class {class_name} : public NUClear::Reactor {{
+                public:
+                    // Constructor
+                    explicit {class_name}(std::unique_ptr<NUClear::Environment> environment);
+
+                private:
+                    // The subinterpreter for this module
+                    PyInterpreterState* interpreter = nullptr;
+
+                    // The self object for this module
+                    pybind11::object self;
+
+                    // The thread state for this thread/interpreter combination
+                    static thread_local PyThreadState* thread_state;
+                }};
+            {close_namespace}
+
+            #endif  // {macro_guard}
+            """)
+
+        with open(os.getcwd() + os.sep + reactor_name + '.h', 'w') as f:
+            f.write(header_template.format(class_name=reactor_name,
+                                           macro_guard=macro_guard,
+                                           open_namespace=open_namespace,
+                                           close_namespace=close_namespace))
+
+        cpp_template = dedent("""\
+            #include "{header_file}"
+
+            #include <pybind11/functional.h>
+
+            {includes}
+
+            // Declare our message init function (comes from the messages code)
+            extern "C" {{
+                PyObject* PyInit_message();
             }}
 
-        {close_namespace}
-        """)
+            {open_namespace}
 
-    with open(os.getcwd() + os.sep + reactor_name + '.cpp', 'w') as f:
-        f.write(cpp_template.format(header_file=header_file,
-                                    class_name=reactor_name,
-                                    includes='\n'.join(includes),
-                                    nuclear_directory=os.path.join('python', 'nuclear'),
-                                    reactor_directory=os.path.join('python', reactor_dir),
-                                    python_file=os.path.join('python', reactor_path),
-                                    binders=indent('\n\n'.join(binders), 8),
-                                    open_namespace=open_namespace,
-                                    close_namespace=close_namespace))
+                thread_local PyThreadState* {class_name}::thread_state = nullptr;
+
+                {class_name}::{class_name}(std::unique_ptr<NUClear::Environment> environment)
+                : Reactor(std::move(environment)) {{
+                    // If python hasn't been used in another module yet
+                    if (!Py_IsInitialized()) {{
+                        // Add our message to our initilsation
+                        PyImport_AppendInittab("message", &PyInit_message);
+
+                        // Initialise without signal handlers
+                        Py_InitializeEx(0);
+
+                        // Initialise using threads in python and then release the GIL
+                        PyEval_InitThreads();
+                        PyEval_ReleaseLock();
+                    }}
+
+                    // RAII aquire the gil
+                    pybind11::gil_scoped_acquire gil;
+
+                    // This sets the threadstate/interpreter combination for
+                    // the thread that creates this interperter
+                    thread_state = Py_NewInterpreter();
+
+                    // Store a pointer to our newly created interpreter
+                    interpreter = thread_state->interp;
+
+                    // Create a module object that holds our binding functions
+                    pybind11::module m("nuclear_reactor", "Binding functions for the current nuclear reactor");
+
+                    // Create a function that binds the self object for passing into callbacks
+                    m.def("bind_self", [this] (pybind11::object obj) {{
+                        self = obj;
+                    }});
+
+            {binders}
+
+                    // Take our created module and add it to this subinterpreters imports
+                    PyImport_AddModule("nuclear_reactor");
+                    PyObject* sys_modules = PyImport_GetModuleDict();
+                    PyDict_SetItemString(sys_modules, "nuclear_reactor", m.ptr());
+
+                    // Setup our search path so that it can find other files and nuclear.py
+                    PyObject* sysPath = PySys_GetObject("path");
+
+                    pybind11::str nuclear_path("{nuclear_directory}");
+                    pybind11::str script_path("{reactor_directory}");
+
+                    PyList_Append(sysPath, nuclear_path.ptr());
+                    PyList_Append(sysPath, script_path.ptr());
+
+                    // Now open up our main python file and run it to bind all the functions
+                    PyRun_SimpleFile(fopen("{python_file}", "r"), "{python_file}");
+                }}
+
+            {close_namespace}
+            """)
+
+        with open(os.getcwd() + os.sep + reactor_name + '.cpp', 'w') as f:
+            f.write(cpp_template.format(header_file=header_file,
+                                        class_name=reactor_name,
+                                        includes='\n'.join(includes),
+                                        nuclear_directory=os.path.join('python', 'nuclear'),
+                                        reactor_directory=os.path.join('python', reactor_dir),
+                                        python_file=os.path.join('python', reactor_path),
+                                        binders=indent('\n\n'.join(binders), 8),
+                                        open_namespace=open_namespace,
+                                        close_namespace=close_namespace))
 
     return reactor
 

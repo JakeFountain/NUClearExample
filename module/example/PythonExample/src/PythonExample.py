@@ -7,7 +7,7 @@ from nuclear import Reactor, on, Trigger, Single, With
 class PythonExample(object):
 
     def __init__(self):
-        self.example_callback()
+        print("Constructing PythonExample in python")
 
     @on(Trigger(ExampleMessage), With(ExampleMessage), Single())
     def example_callback(self, data):

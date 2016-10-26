@@ -4,5 +4,6 @@ NUCLEAR_ROLE(
     extension::FileWatcher
     support::configuration::NetworkConfiguration
     example::PythonExample
+    example::PeriodicEmitter
 )
 
