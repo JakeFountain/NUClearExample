@@ -28,6 +28,7 @@ namespace NUClear {
                 }
 
                 static inline T deserialise(const std::vector<char>& in) {
+
                     // Make a buffer
                     protobuf_type out;
 
@@ -40,8 +41,12 @@ namespace NUClear {
 
                     // We have to construct an instance to call the reflection functions
                     protobuf_type type;
-                    // We base the hash on the name of the protocol buffer
-                    return murmurHash3(type.GetTypeName().c_str(), type.GetTypeName().size());
+
+                    // We have to remove the 'protobuf' namespace
+                    std::string typeName = type.GetTypeName().substr(9);
+
+                    // We base the hash on the name of the protocol buffer, removing the protobuf prefix on typeName
+                    return murmurHash3(typeName.c_str(), typeName.size());
                 }
             };
 
