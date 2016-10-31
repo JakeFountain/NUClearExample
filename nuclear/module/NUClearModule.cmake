@@ -56,15 +56,6 @@ FUNCTION(NUCLEAR_MODULE)
         FIND_PACKAGE(pybind11 REQUIRED)
         FIND_PACKAGE(PythonLibsNew 3 REQUIRED)
 
-        # This makes a link for nuclear.py so it can be used by python modules
-        FILE(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/python/nuclear")
-        ADD_CUSTOM_COMMAND(
-            OUTPUT "${PROJECT_BINARY_DIR}/python/nuclear/nuclear.py"
-            COMMAND ${CMAKE_COMMAND} -E create_symlink "${NUCLEAR_ROLES_DIR}/module/python/nuclear.py" "${PROJECT_BINARY_DIR}/python/nuclear/nuclear.py"
-            DEPENDS "${NUCLEAR_ROLES_DIR}/module/python/nuclear.py"
-            COMMENT "Creating a symbolic link for nuclear.py"
-        )
-
         # Now copy all our python files across to the python directory of output
         FILE(GLOB_RECURSE python_files "${CMAKE_CURRENT_SOURCE_DIR}/src/**.py")
 
@@ -82,13 +73,12 @@ FUNCTION(NUCLEAR_MODULE)
             GET_FILENAME_COMPONENT(output_folder ${output_file} DIRECTORY)
             FILE(MAKE_DIRECTORY ${output_folder})
 
-            # Create symlinks to the files
+            # Copy across our file
             ADD_CUSTOM_COMMAND(
                 OUTPUT ${output_file}
-                COMMAND ${CMAKE_COMMAND} -E create_symlink ${python_file} ${output_file}
+                COMMAND ${CMAKE_COMMAND} -E copy ${python_file} ${output_file}
                 DEPENDS ${python_file}
-                        "${PROJECT_BINARY_DIR}/python/nuclear/nuclear.py"
-                COMMENT "Creating symbolic link for file ${python_file}"
+                COMMENT "Copying updated python file ${python_file}"
             )
 
         ENDFOREACH(python_file)
@@ -98,12 +88,12 @@ FUNCTION(NUCLEAR_MODULE)
                    "${CMAKE_CURRENT_BINARY_DIR}/src/${module_name}.cpp"
             COMMAND ${CMAKE_COMMAND}
             ARGS -E env
-                PYTHONPATH="${NUCLEAR_ROLES_DIR}/module/python/"
+                PYTHONPATH="${PROJECT_BINARY_DIR}/python/nuclear/"
                 NUCLEAR_MODULE_DIR="${PROJECT_SOURCE_DIR}/${NUCLEAR_MODULE_DIR}"
                 ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/src/${module_name}.py"
             WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/src"
             DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/${module_name}.py"
-                    "${NUCLEAR_ROLES_DIR}/module/python/nuclear.py"
+                    ${NUCLEAR_MESSAGE_LIBRARIES}
             COMMENT "Generating bindings for python module ${module_name}")
 
         SET(src "${CMAKE_CURRENT_BINARY_DIR}/src/${module_name}.h"
@@ -132,12 +122,12 @@ FUNCTION(NUCLEAR_MODULE)
         GET_FILENAME_COMPONENT(output_folder ${output_file} DIRECTORY)
         FILE(MAKE_DIRECTORY ${output_folder})
 
-        # Create symlinks to the files
+        # Copy across the files
         ADD_CUSTOM_COMMAND(
             OUTPUT ${output_file}
-            COMMAND ${CMAKE_COMMAND} -E create_symlink ${data_file} ${output_file}
+            COMMAND ${CMAKE_COMMAND} -E copy ${data_file} ${output_file}
             DEPENDS ${data_file}
-            COMMENT "Creating symbolic link for file ${data_file}"
+            COMMENT "Copying updated data file ${data_file}"
         )
 
     ENDFOREACH(data_file)

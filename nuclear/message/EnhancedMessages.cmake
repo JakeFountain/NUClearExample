@@ -214,8 +214,28 @@ IF(src)
     # The library uses protocol buffers
     TARGET_LINK_LIBRARIES(nuclear_message ${PROTOBUF_LIBRARIES})
 
+    # If we have pybind11 we need to make this a python library too
     IF(pybind11_FOUND)
         TARGET_LINK_LIBRARIES(nuclear_message ${PYTHON_LIBRARIES})
+
+        # Work out what python expects the name of the library to be
+        SET(python_module_path "${PYTHON_MODULE_PREFIX}message${PYTHON_MODULE_EXTENSION}")
+
+        # Make our NUClear python directory for including
+        FILE(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/python/nuclear")
+
+        # Create symlinks to the files
+        ADD_CUSTOM_COMMAND(TARGET nuclear_message POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:nuclear_message> "${PROJECT_BINARY_DIR}/python/nuclear/${python_module_path}"
+            COMMENT "Copying messages lib into python file format"
+        )
+
+        ADD_CUSTOM_COMMAND(TARGET nuclear_message POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy "${NUCLEAR_ROLES_DIR}/module/python/nuclear.py" "${PROJECT_BINARY_DIR}/python/nuclear/nuclear.py"
+            DEPENDS "${NUCLEAR_ROLES_DIR}/module/python/nuclear.py"
+            COMMENT "Copying nuclear.py to python build directory"
+        )
+
     ENDIF()
 
     # Add to our list of NUClear message libraries
