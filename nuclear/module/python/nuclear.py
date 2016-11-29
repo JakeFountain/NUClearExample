@@ -198,14 +198,13 @@ def Reactor(reactor):
                     // Run the python function
                     try {{
                         fn(self, {input_vars});
+                        PyEval_SaveThread();
                     }}
                     catch(...) {{
                         // Finished with python
                         PyEval_SaveThread();
                         std::rethrow_exception(std::current_exception());
                     }}
-
-                    PyEval_SaveThread();
                 }});
             }});""")
 
