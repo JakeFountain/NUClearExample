@@ -1,4 +1,5 @@
 import inspect
+import message
 import re
 import os
 from textwrap import dedent
@@ -147,12 +148,16 @@ class DSLCallback(DSLWord):
 # Decorator for creating instance variables/setting up reactor
 def Reactor(reactor):
 
+    # Attach an emit method to the class
+    setattr(reactor, 'emit', lambda self, msg: msg._emit(self._reactor_ptr))
+
     try:
         # If we can import this we are running in nuclear, so run
         import nuclear_reactor
 
         # Bind an instance of this reactor into nuclear
-        nuclear_reactor.bind_self(reactor())
+        instance = reactor()
+        setattr(instance, '_reactor_ptr', nuclear_reactor.bind_self(instance))
 
         # Go through all of our DSL callbacks to bind them
         reactions = inspect.getmembers(reactor, predicate=lambda x: isinstance(x, DSLCallback))
@@ -316,7 +321,11 @@ def Reactor(reactor):
 
                     // Create a function that binds the self object for passing into callbacks
                     m.def("bind_self", [this] (pybind11::object obj) {{
+                        // Store the provided object
                         self = obj;
+
+                        // Return the reactor as an opaque object (for emitting)
+                        return pybind11::capsule(this);
                     }});
 
             {binders}

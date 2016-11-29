@@ -213,6 +213,7 @@ IF(src)
 
     # The library uses protocol buffers
     TARGET_LINK_LIBRARIES(nuclear_message ${PROTOBUF_LIBRARIES})
+    TARGET_LINK_LIBRARIES(nuclear_message ${NUClear_LIBRARIES})
 
     # If we have pybind11 we need to make this a python library too
     IF(pybind11_FOUND)

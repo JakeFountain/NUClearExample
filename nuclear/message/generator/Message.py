@@ -266,6 +266,15 @@ class Message:
                 context.def_static("include_path", [] {{
                     return "{include_path}";
                 }});
+
+                // Build our emitter function that is used to emit this object
+                context.def("_emit", [] ({fqn}& msg, pybind11::capsule capsule) {{
+                    // Extract our reactor from the capsule
+                    NUClear::Reactor* reactor = capsule;
+
+                    // Do the emit
+                    reactor->powerplant.emit_shared<NUClear::dsl::word::emit::Local>(msg.shared_from_this());
+                }});
             }}""")
 
         python_members = '\n'.join('.def_readwrite("{field}", &{fqn}::{field})'.format(field=f.name, fqn=self.fqn.replace('.', '::')) for f in self.fields)

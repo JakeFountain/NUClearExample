@@ -177,6 +177,13 @@ class Enum:
                     .def(pybind11::self == {fqn}::Value())
                     .def_static("include_path", [] {{
                         return "{include_path}";
+                    }})
+                    .def("_emit", [] ({fqn}& msg, pybind11::capsule capsule) {{
+                        // Extract our reactor from the capsule
+                        NUClear::Reactor* reactor = capsule;
+
+                        // Do the emit
+                        reactor->powerplant.emit_shared<NUClear::dsl::word::emit::Local>(msg.shared_from_this());
                     }});
 
                 pybind11::enum_<{fqn}::Value>(enumclass, "Value")
