@@ -89,7 +89,14 @@ class Buffer(DSLWord):
         return "{}<{}>".format(self._name, self._k)
 
 class Every(DSLWord):
-    pass
+    def __init__(self, time):
+        self._name = self.__class__.__name__
+        self._time = time
+
+    def template_args(self):
+        ns = int(self._time * 1e9)
+        return "{}<{}, std::chrono::nanoseconds>".format(self._name, ns)
+
 
 class Priority(object):
     class REALTIME(DSLWord):
@@ -202,7 +209,7 @@ def Reactor(reactor):
 
                     // Run the python function
                     try {{
-                        fn(self, {input_vars});
+                        fn({input_vars});
                         PyEval_SaveThread();
                     }}
                     catch(...) {{
@@ -228,7 +235,7 @@ def Reactor(reactor):
                                            dsl=reaction[1].template_args(),
                                            input_args=', '.join(input_args),
                                            input_types=', '.join(input_types),
-                                           input_vars=', '.join(input_vars)))
+                                           input_vars=', '.join(['self'] + input_vars)))
 
             for include in reaction[1].include_paths():
                 includes.add('#include "{}"'.format(include))

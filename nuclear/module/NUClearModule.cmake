@@ -89,6 +89,8 @@ FUNCTION(NUCLEAR_MODULE)
 
         ENDFOREACH(python_file)
 
+        FILE(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/src")
+
         ADD_CUSTOM_COMMAND(
             OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/src/${module_name}.h"
                    "${CMAKE_CURRENT_BINARY_DIR}/src/${module_name}.cpp"
