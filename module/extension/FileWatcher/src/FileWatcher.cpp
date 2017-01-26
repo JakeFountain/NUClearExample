@@ -63,7 +63,7 @@ namespace extension {
                             FileWatch::FileWatchStore::value = &watch;
 
                             // Directly execute our reaction here
-                            auto task = reaction.first->getTask();
+                            auto task = reaction.first->get_task();
                             if(task) {
                                 reactor.powerplant.submit(std::move(task));
                             }
@@ -126,7 +126,7 @@ namespace extension {
             for(auto pIt = handlers.begin(); pIt != handlers.end(); ++pIt) {
                 for(auto fIt = pIt->second.begin(); fIt != pIt->second.end(); ++fIt) {
                     for(auto rIt = fIt->second.begin(); rIt != fIt->second.end(); ++rIt) {
-                        if (rIt->first->reactionId == fw.reactionId) {
+                        if (rIt->first->id == fw.id) {
 
                             // Erase this reaction
                             fIt->second.erase(rIt);
@@ -186,7 +186,7 @@ namespace extension {
                     FileWatch::FileWatchStore::value = &watch;
 
                     // Directly execute our reaction here
-                    auto task = req.reaction->getTask();
+                    auto task = req.reaction->get_task();
                     if(task) {
                         task->run(std::move(task));
                     }
@@ -209,7 +209,7 @@ namespace extension {
                 FileWatch::FileWatchStore::value = &watch;
 
                 // Directly execute our reaction here
-                auto task = req.reaction->getTask();
+                auto task = req.reaction->get_task();
                 if(task) {
                     task->run(std::move(task));
                 }
@@ -291,7 +291,7 @@ namespace extension {
 //                                    FileWatch::FileWatchStore::value = &watch;
 //
 //                                    // Submit the task (which should run the get)
-//                                    auto task = reaction.first->getTask();
+//                                    auto task = reaction.first->get_task();
 //                                    if(task) {
 //                                        powerplant.submit(std::move(task));
 //                                    }
@@ -321,7 +321,7 @@ namespace extension {
 //                                    FileWatch::FileWatchStore::value = &watch;
 //
 //                                    // Submit the task (which should run the get)
-//                                    auto task = reaction.first->getTask();
+//                                    auto task = reaction.first->get_task();
 //                                    if(task) {
 //                                        powerplant.submit(std::move(task));
 //                                    }
