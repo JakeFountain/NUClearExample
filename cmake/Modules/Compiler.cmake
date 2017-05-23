@@ -30,3 +30,8 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES GNU)
         ADD_COMPILE_OPTIONS(-fdiagnostics-color=always)
     ENDIF()
 ENDIF()
+
+IF(CMAKE_CXX_COMPILER_ID MATCHES Clang)
+    ADD_COMPILE_OPTIONS(-fcolor-diagnostics)
+ENDIF()
+

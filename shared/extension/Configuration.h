@@ -128,13 +128,13 @@ namespace NUClear {
                 }
 
             public:
-                template <typename DSL, typename TFunc>
-                static inline threading::ReactionHandle bind(Reactor& reactor, const std::string& label, TFunc&& callback, const std::string& path) {
-                    return DSLProxy<::extension::FileWatch>::bind<DSL>(reactor, label, callback, "config/" + path,
-                                                                         ::extension::FileWatch::ATTRIBUTE_MODIFIED
-                                                                       | ::extension::FileWatch::CREATED
-                                                                       | ::extension::FileWatch::UPDATED
-                                                                       | ::extension::FileWatch::MOVED_TO);
+                template <typename DSL>
+                static inline void bind(const std::shared_ptr<threading::Reaction>& reaction, const std::string& path) {
+                    DSLProxy<::extension::FileWatch>::bind<DSL>(reaction, "config/" + path,
+                                                                  ::extension::FileWatch::ATTRIBUTE_MODIFIED
+                                                                | ::extension::FileWatch::CREATED
+                                                                | ::extension::FileWatch::UPDATED
+                                                                | ::extension::FileWatch::MOVED_TO);
                 }
 
                 template <typename DSL>

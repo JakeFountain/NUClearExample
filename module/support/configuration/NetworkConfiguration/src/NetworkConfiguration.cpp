@@ -36,18 +36,46 @@ namespace configuration {
             emit<Scope::DIRECT>(netConfig);
         });
 
-        on<Trigger<NUClear::message::NetworkJoin>>().then([this](const NUClear::message::NetworkJoin& message){
-            char str[INET_ADDRSTRLEN];
-            uint32_t addr = htonl(message.address);
-            inet_ntop(AF_INET, &addr, str, INET_ADDRSTRLEN);
-            log<NUClear::INFO>("Connected to", message.name, "on", str);
+        on<Trigger<NUClear::message::NetworkJoin>>().then([this](const NUClear::message::NetworkJoin& event) {
+            char c[255];
+            std::memset(c, 0, sizeof(c));
+            std::string addr;
+            int port;
+
+            switch (event.address.sock.sa_family) {
+                case AF_INET:
+                    addr = inet_ntop(event.address.sock.sa_family, &event.address.ipv4.sin_addr, c, sizeof(c));
+                    port = ntohs(event.address.ipv4.sin_port);
+                    break;
+
+                case AF_INET6:
+                    addr = inet_ntop(event.address.sock.sa_family, &event.address.ipv6.sin6_addr, c, sizeof(c));
+                    port = ntohs(event.address.ipv6.sin6_port);
+                    break;
+            }
+
+            log<NUClear::INFO>("Connected to", event.name, "on", addr + ":" + std::to_string(port));
         });
 
-        on<Trigger<NUClear::message::NetworkLeave>>().then([this](const NUClear::message::NetworkLeave& message){
-            char str[INET_ADDRSTRLEN];
-            uint32_t addr = htonl(message.address);
-            inet_ntop(AF_INET, &addr, str, INET_ADDRSTRLEN);
-            log<NUClear::INFO>("Disconnected from", message.name, "on", str);
+        on<Trigger<NUClear::message::NetworkLeave>>().then([this](const NUClear::message::NetworkLeave& event) {
+            char c[255];
+            std::memset(c, 0, sizeof(c));
+            std::string addr;
+            int port;
+
+            switch (event.address.sock.sa_family) {
+                case AF_INET:
+                    addr = inet_ntop(event.address.sock.sa_family, &event.address.ipv4.sin_addr, c, sizeof(c));
+                    port = ntohs(event.address.ipv4.sin_port);
+                    break;
+
+                case AF_INET6:
+                    addr = inet_ntop(event.address.sock.sa_family, &event.address.ipv6.sin6_addr, c, sizeof(c));
+                    port = ntohs(event.address.ipv6.sin6_port);
+                    break;
+            }
+
+            log<NUClear::INFO>("Disconnected from", event.name, "on", addr + ":" + std::to_string(port));
         });
     }
 }
