@@ -34,5 +34,5 @@ message ExampleMessage {
     google.protobuf.Timestamp timestamp = 1;
 
     vec3 vector = 2;
-    mat33 matrix = 3;
+    mat3 matrix = 3;
 }
