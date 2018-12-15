@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/git-commands/git-subrepo#readme
+;
+[subrepo]
+	remote = https://github.com/Fastcode/NUClearRoles.git
+	branch = master
+	commit = 8f900503ae430da1d9820039b04c088372736bec
+	parent = b162d9caf6cc3e9f8aeaf7cac834f9747705c661
+	method = merge
+	cmdver = 0.4.0
