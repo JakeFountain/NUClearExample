@@ -15,6 +15,5 @@
 
 INCLUDE(ToolchainLibraryFinder)
 ToolchainLibraryFinder(NAME Eigen3
-                       HEADER Eigen/Core
-                       PATH_SUFFIX eigen3
+                       HEADER eigen3/Eigen/Core
 )

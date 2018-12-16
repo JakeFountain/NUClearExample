@@ -13,7 +13,9 @@
 # COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 # OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-INCLUDE(${PROJECT_SOURCE_DIR}/nuclear/cmake/Modules/ToolchainLibraryFinder.cmake)
-ToolchainLibraryFinder(NAME CATCH
-                       HEADER catch.hpp
+INCLUDE(HeaderLibrary)
+
+HeaderLibrary(NAME CATCH
+              HEADER catch.hpp
+              URL "https://raw.githubusercontent.com/catchorg/Catch2/master/single_include/catch2/catch.hpp"
 )
